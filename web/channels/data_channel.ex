@@ -11,7 +11,26 @@ defmodule Hackathon.DataChannel do
   end
 
   def handle_out("respond_points", payload, socket) do
-    push socket, "respond_points", payload
+    necessities =
+      payload
+      |> Enum.map(fn(data) ->
+        %{
+          "geom" => %{
+            "coordinates" => [x, y]
+          },
+          "data" => %{
+            "IncidentDetails" => severity
+          }
+        } = data
+
+        %{
+          :x => x,
+          :y => y,
+          :severity => severity
+        }
+      end)
+
+    push socket, "respond_points", necessities
     {:noreply, socket}
   end
 
@@ -32,8 +51,7 @@ defmodule Hackathon.DataChannel do
       |> Poison.decode
 
     {:ok, %{"count" => count, "next" => next, "results" => results}} = response
-
-    broadcast! socket, "respond_points", %{:results => results}
+    broadcast! socket, "respond_points", %{:results => results |> simplify}
     request_accident_data(next, socket)
   end
 
@@ -51,10 +69,43 @@ defmodule Hackathon.DataChannel do
 
     {:ok, %{"count" => count, "next" => next, "results" => results}} = response
 
-    broadcast! socket, "respond_points", %{:results => results}
+    broadcast! socket, "respond_points", %{:results => results |> simplify}
 
     if next != nil do
       request_accident_data(next, socket)
+    end
+  end
+
+  defp simplify(payload) do
+    payload |>
+    Enum.map(fn(data) ->
+      %{
+        "geom" => %{
+            "coordinates" => [x, y]
+        },
+        "data" => %{
+          "incidentDetails" =>
+            %{"Severity" => severity}
+        }
+      } = data
+
+      %{
+        :x => x,
+        :y => y,
+        :severity => severity |> analyzeSeverity
+      }
+    end)
+  end
+
+  defp analyzeSeverity(severities) do
+    cond do
+      severities === "Property" -> 0.3
+      severities === "Injury" -> 0.5
+      severities === "Fatal" -> 1.0
+      Enum.member?(severities, "Fatal") -> 1.0
+      Enum.member?(severities, "Injury") -> 0.5
+      Enum.member?(severities, "Property") -> 0.3
+      true -> 0.3
     end
   end
 
