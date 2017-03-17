@@ -7,11 +7,12 @@ defmodule Hackathon.DataChannel do
 
   def handle_in("request_points", %{"payload" => payload}, socket) do
     request_accident_data(payload |> Poison.encode, socket)
-    {:ok, socket}
+    {:noreply, socket}
   end
 
   def handle_out("respond_points", payload, socket) do
     push socket, "respond_points", payload
+    {:noreply, socket}
   end
 
   defp request_accident_data({:ok, geojson} = payload, socket) do
