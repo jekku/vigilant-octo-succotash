@@ -51,11 +51,11 @@ defmodule Hackathon.DataChannel do
       |> Poison.decode
 
     {:ok, %{"count" => count, "next" => next, "results" => results}} = response
-    broadcast! socket, "respond_points", %{:results => results |> simplify}
-    request_accident_data(next, socket)
+    #broadcast! socket, "respond_points", %{:results => results |> simplify}
+    request_accident_data(next, socket, results |> simplify)
   end
 
-  defp request_accident_data(url, socket) do
+  defp request_accident_data(url, socket, prev \\ []) do
     response =
       HTTPotion.get(
         url,
@@ -68,11 +68,13 @@ defmodule Hackathon.DataChannel do
       |> Poison.decode
 
     {:ok, %{"count" => count, "next" => next, "results" => results}} = response
-
-    broadcast! socket, "respond_points", %{:results => results |> simplify}
+    current = results |> simplify
 
     if next != nil do
-      request_accident_data(next, socket)
+      request_accident_data(next, socket, prev ++ current)
+    else
+      broadcast! socket, "respond_points", %{:results => prev ++ current}
+      broadcast! socket, "receive_centroid", Hackathon.CentroidHelper.find_centroid(prev ++ current)
     end
   end
 

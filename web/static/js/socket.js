@@ -15,4 +15,8 @@ channel.push("request_points", {payload: {"type":"Polygon","coordinates":[[[121.
 channel.on("respond_points", payload => {
   console.log(payload)
 })
+
+channel.on("receive_centroid", payload => {
+  console.log(payload)
+})
 export default socket
